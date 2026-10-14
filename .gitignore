@@ -1,0 +1,30 @@
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# Dados baixados (PneumoniaMNIST) e cache de embeddings.
+# Não versionamos: são regenerados automaticamente na primeira execução
+# e o .npz de embeddings passa de 10 MB.
+dados/
+
+# Resultados são artefatos de execução, não fonte.
+# As figuras e tabelas finais usadas no paper devem ser copiadas à mão
+# para docs/ quando a execução oficial terminar.
+resultados/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
+.idea/
