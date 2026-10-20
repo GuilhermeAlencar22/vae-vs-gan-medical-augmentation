@@ -102,6 +102,7 @@ modelo reconhecer bem justamente a classe rara.
 │   ├── qualitativo.py      projeção t-SNE dos embeddings (análise visual)
 │   └── utilidades.py       seeds e escolha de GPU
 ├── docs/
+│   ├── INSTRUCOES_LEO.md   passo a passo para rodar a execução oficial
 │   ├── GUIA_DEFESA.md      perguntas prováveis do professor, com respostas
 │   ├── PLANO_ENTREGA.md    divisão de tarefas e ordem das atividades
 │   └── adr/                decisões de arquitetura registradas
@@ -114,6 +115,10 @@ cada camada, ativação e hiperparâmetro está ali — não apenas o que o cód
 ---
 
 ## 4. Como executar
+
+> **Vai rodar a execução oficial?** Siga `docs/INSTRUCOES_LEO.md`, que traz o
+> passo a passo testado num clone limpo, o tempo esperado e o que fazer em
+> cada erro conhecido.
 
 ### Pré-requisitos
 
@@ -134,9 +139,12 @@ No VS Code, `Cmd+Shift+P` → **Python: Select Interpreter** → escolha o `.ven
 Confirma que tudo funciona e baixa o dataset e os pesos da ResNet:
 
 ```bash
-python simular.py --simulacoes 2 --epocas 5 --reiniciar
+python simular.py --simulacoes 3 --epocas 5 --reiniciar
 python analisar.py
 ```
+
+Três simulações, e não duas, porque o Shapiro-Wilk e o desvio padrão precisam
+de pelo menos três observações para rodar.
 
 ### Execução oficial
 

@@ -2,11 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Teste rápido (2 simulações, 5 épocas)",
+      "name": "Teste rápido (3 simulações, 5 épocas)",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/simular.py",
-      "args": ["--simulacoes", "2", "--epocas", "5", "--reiniciar"],
+      "args": ["--simulacoes", "3", "--epocas", "5", "--reiniciar"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true

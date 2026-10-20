@@ -62,7 +62,7 @@ professor pergunta a qualquer um dos dois:
 - [ ] `src/ensemble.py`: por que `class_weight="balanced"` (ver ADR-0002)
 - [ ] `src/estatistica.py`: Shapiro → t ou Wilcoxon, bilateral, dz, IC
 - [ ] Rodar o teste rápido e confirmar que passa de ponta a ponta:
-      `python simular.py --simulacoes 2 --epocas 5 --reiniciar && python analisar.py`
+      `python simular.py --simulacoes 3 --epocas 5 --reiniciar && python analisar.py`
 - [ ] Rodar `python -m src.diagnostico --epocas 50` e entender a separabilidade 1,0000
 
 **Saída:** lista de dúvidas para o Guilherme responder antes de T3.
