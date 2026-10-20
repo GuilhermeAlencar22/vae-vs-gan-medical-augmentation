@@ -99,9 +99,12 @@ modelo reconhecer bem justamente a classe rara.
 │   ├── estatistica.py      teste pareado, d de Cohen, IC de 95%
 │   ├── graficos.py         figuras no tamanho de coluna IEEE
 │   ├── diagnostico.py      verifica se o aumento sintético é efetivo
+│   ├── qualitativo.py      projeção t-SNE dos embeddings (análise visual)
 │   └── utilidades.py       seeds e escolha de GPU
 ├── docs/
-│   └── GUIA_DEFESA.md      perguntas prováveis do professor, com respostas
+│   ├── GUIA_DEFESA.md      perguntas prováveis do professor, com respostas
+│   ├── PLANO_ENTREGA.md    divisão de tarefas e ordem das atividades
+│   └── adr/                decisões de arquitetura registradas
 └── resultados/             gerado ao rodar (não versionado)
 ```
 
@@ -156,11 +159,12 @@ O script se recusa a misturar no mesmo CSV simulações treinadas com números d
 ### Diagnóstico do aumento sintético
 
 ```bash
-python -m src.diagnostico --epocas 50
+python -m src.diagnostico --epocas 50     # evidência numérica
+python -m src.qualitativo --epocas 50     # evidência visual (t-SNE)
 ```
 
-Mede se as imagens sintéticas funcionam de fato como exemplos extras da classe
-normal. Ver a seção 6.
+Medem se as imagens sintéticas funcionam de fato como exemplos extras da
+classe normal. Ver a seção 6.
 
 ---
 
@@ -208,6 +212,10 @@ duas nuvens sem erro algum. Do ponto de vista do classificador, as imagens
 sintéticas não são "mais exemplos de normal": são um terceiro agrupamento, que
 as árvores isolam com um único corte e que portanto não ensina nada sobre as
 radiografias normais de verdade.
+
+A projeção t-SNE (`figuras/qualitativo_tsne.pdf`) mostra isso visualmente: as
+três nuvens aparecem como ilhas praticamente disjuntas, sem sobreposição entre
+o sintético e o real.
 
 A norma menor do embedding sintético é a pista de **por que** isso acontece: a
 ResNet responde com ativações mais fracas a texturas pobres. As imagens geradas
