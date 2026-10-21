@@ -10,6 +10,8 @@
 \usepackage[T1]{fontenc}
 \usepackage{url}
 \usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc}
 
 \graphicspath{{figuras/}}
 
@@ -175,11 +177,56 @@ trata-se de correção do instrumento de medida, não do tratamento.
 
 \begin{figure}[t]
 \centering
-% Substituir por diagrama do pipeline (ver paper/README.md)
-\framebox[0.95\columnwidth]{\rule{0pt}{4.2cm}\ \ Diagrama do pipeline}
+\begin{tikzpicture}[
+  font=\scriptsize,
+  node distance=3.2mm,
+  caixa/.style={draw, rounded corners=1pt, align=center, inner sep=2pt,
+                text width=0.80\columnwidth, minimum height=6mm},
+  gerador/.style={draw, rounded corners=1pt, align=center, inner sep=2pt,
+                  text width=0.38\columnwidth, minimum height=9mm},
+  seta/.style={-{Latex[length=1.4mm]}, shorten >=0.4pt}
+]
+
+\node[caixa] (dados) {\textbf{PneumoniaMNIST} (MedMNIST v2)\\
+treino 4.708 $\cdot$ teste 624 $\cdot$ $28\times28$};
+
+\node[caixa, below=of dados] (escassez) {\textbf{Escassez simulada}\\
+300 normais $\cdot$ 1.500 pneumonias (1:5)};
+
+\node[gerador, below=5.5mm of escassez.south, xshift=-0.21\columnwidth,
+      fill=black!4] (vae) {\textbf{Cenário H0}\\ VAE convolucional\\
+      $\rightarrow$ 1.200 sintéticas};
+\node[gerador, below=5.5mm of escassez.south, xshift=0.21\columnwidth,
+      fill=black!10] (gan) {\textbf{Cenário H1}\\ DCGAN\\
+      $\rightarrow$ 1.200 sintéticas};
+
+\node[caixa, below=5.5mm of $(vae.south)!0.5!(gan.south)$] (resnet)
+  {\textbf{ResNet18 congelada} (ImageNet)\\
+   $112\times112$ $\cdot$ 3 canais $\cdot$ 512 características};
+
+\node[caixa, below=of resnet] (ensemble) {\textbf{Ensemble de votação suave}\\
+Reg. logística $\cdot$ random forest $\cdot$ gradient boosting};
+
+\node[caixa, below=of ensemble] (avaliacao) {\textbf{Teste oficial} (624 imagens)\\
+F1 minoritária $\cdot$ AUC $\cdot$ FD ResNet};
+
+\node[caixa, below=of avaliacao] (teste) {\textbf{30 seeds pareadas} (42--71)\\
+Shapiro--Wilk $\rightarrow$ $t$ pareado bilateral $\cdot$ IC 95\% $\cdot$ $d_z$};
+
+\draw[seta] (dados) -- (escassez);
+\draw[seta] (escassez.south) -- ++(0,-1.6mm) -| (vae.north);
+\draw[seta] (escassez.south) -- ++(0,-1.6mm) -| (gan.north);
+\draw[seta] (vae.south) |- ++(0,-1.8mm) -| (resnet.north);
+\draw[seta] (gan.south) |- ++(0,-1.8mm) -| (resnet.north);
+\draw[seta] (resnet) -- (ensemble);
+\draw[seta] (ensemble) -- (avaliacao);
+\draw[seta] (avaliacao) -- (teste);
+
+\end{tikzpicture}
 \caption{Fluxo experimental. Apenas o bloco de geração sintética difere entre
 os cenários H0 e H1; extração de características, classificador e conjunto de
-teste são idênticos.}
+teste são idênticos. Um terceiro cenário, sem aumento, usa apenas as imagens
+reais e serve de linha de base.}
 \label{fig:pipeline}
 \end{figure}
 
@@ -193,6 +240,15 @@ conjunto de teste oficial, o que caracteriza um desenho pareado. Para que
 nenhum gerador seja favorecido por mais computação, ambos recebem orçamento
 idêntico: $200$ épocas. Um terceiro cenário, \emph{sem aumento}, é registrado
 como linha de base e não participa do teste.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{convergencia_f1}
+\caption{Média acumulada da diferença pareada e intervalo de confiança de
+$95\%$ em função do número de simulações. O estreitamento da faixa justifica a
+escolha de 30 repetições.}
+\label{fig:convergencia}
+\end{figure}
 
 \subsection{Métricas e análise estatística}
 
@@ -210,7 +266,8 @@ não havia expectativa fundamentada sobre qual gerador venceria. Verificamos a
 normalidade das $30$ diferenças pareadas com Shapiro--Wilk; satisfeita a
 suposição, aplicamos o teste $t$ pareado, e o de Wilcoxon caso contrário.
 Adotamos $\alpha = 0{,}05$ e reportamos o tamanho de efeito $d_z$ de Cohen e o
-intervalo de confiança de $95\%$.
+intervalo de confiança de $95\%$. A Fig.~\ref{fig:convergencia} mostra o
+estreitamento progressivo do intervalo e justifica a escolha de 30 repetições.
 
 \section{Resultados}
 
@@ -221,7 +278,8 @@ simulações. O cenário com DCGAN supera o com VAE no F1 da classe minoritária
 o teste pareado rejeita $H_0$ com folga: diferença média de $-0{,}032$ a favor
 da DCGAN, $p < 10^{-6}$, $d_z = -2{,}40$, intervalo de confiança de $95\%$
 $[-0{,}037;\ -0{,}027]$. Shapiro--Wilk não rejeitou a normalidade das
-diferenças ($p = 0{,}69$), de modo que o teste $t$ pareado é apropriado.
+diferenças ($p = 0{,}69$), de modo que o teste $t$ pareado é apropriado. A
+Fig.~\ref{fig:histograma} apresenta a distribuição dessas diferenças.
 
 % Tabela gerada automaticamente em resultados/tabela_resultados.tex
 \begin{table}[t]
@@ -241,17 +299,61 @@ FD ResNet ($\downarrow$) & --- & 223,3 & \textbf{160,2} \\
 \end{tabular}
 \end{table}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{boxplot_f1}
+\caption{Distribuição do F1 da classe minoritária nas 30 simulações. Cada ponto
+é uma repetição; a caixa marca os quartis e a mediana.}
+\label{fig:boxplot}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{pareado_f1}
+\caption{Resultado de cada simulação nos dois cenários. Cada linha liga o par
+obtido com a mesma semente, evidenciando a consistência da vantagem da DCGAN
+apesar da magnitude modesta.}
+\label{fig:pareado}
+\end{figure}
+
+As Figs.~\ref{fig:boxplot} e~\ref{fig:pareado} detalham essa diferença: a
+primeira mostra a dispersão por cenário, e a segunda liga os pares de mesma
+semente, evidenciando que a vantagem da DCGAN, embora pequena, é consistente
+entre as repetições.
+
 Dois aspectos merecem destaque. Primeiro, a linha de base \emph{sem aumento
 algum} alcança F1 de $0{,}710$, de modo que a DCGAN a supera por apenas
 $0{,}007$, enquanto o VAE a degrada em $0{,}025$. Segundo, a AUC favorece a
 linha de base sobre ambos os geradores, indicando que o aumento sintético
 altera o limiar de decisão mais do que a capacidade de ordenação do modelo.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{histograma_diferencas_f1}
+\caption{Distribuição das 30 diferenças pareadas (VAE menos DCGAN). A massa
+concentra-se à esquerda de zero, e a linha tracejada marca o valor esperado sob
+$H_0$.}
+\label{fig:histograma}
+\end{figure}
+
 \subsection{Fidelidade das amostras}
 
 A distância de Fréchet favorece a DCGAN ($160{,}2$ contra $223{,}3$), em
 concordância com o desempenho de classificação. Neste experimento, portanto,
-fidelidade e utilidade apontam na mesma direção.
+fidelidade e utilidade apontam na mesma direção. A inspeção visual
+(Fig.~\ref{fig:amostras}) é coerente com a métrica: as amostras do VAE exibem a
+suavização esperada de sua perda de reconstrução, enquanto as da DCGAN
+preservam textura mais próxima da real.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.86\textwidth]{amostras_geradas}
+\caption{Amostras reais da classe minoritária e amostras sintéticas de cada
+gerador (semente 42, 200 épocas). As imagens do VAE exibem a suavização típica
+da perda de reconstrução pixel a pixel; as da DCGAN preservam textura mais
+próxima da real.}
+\label{fig:amostras}
+\end{figure*}
 
 \subsection{Diagnóstico de separabilidade}
 
@@ -308,10 +410,23 @@ sugeriria uma conclusão bem mais entusiasmada do que os dados sustentam.
 
 O diagnóstico de separabilidade oferece a explicação. Treinar um gerador com
 $300$ imagens de $28 \times 28$ não basta para reproduzir a estatística de
-textura que a ResNet18 utiliza para descrever as radiografias reais. As
+textura que a ResNet18 utiliza para descrever as radiografias reais. A
+Fig.~\ref{fig:tsne} ilustra o ponto e, ao mesmo tempo, adverte contra a leitura
+apenas visual: ainda que as nuvens se aproximem na projeção, a separabilidade
+medida permanece acima de $0{,}98$. As
 amostras sintéticas ocupam região própria do espaço de características, e um
 classificador baseado em árvores simplesmente as isola, em vez de generalizar a
 partir delas.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{qualitativo_tsne}
+\caption{Projeção t-SNE \cite{vandermaaten2008tsne} das características da
+ResNet18. Mesmo quando as nuvens se aproximam visualmente, um classificador
+linear ainda as separa com acurácia superior a $0{,}98$, o que evidencia a
+diferença entre proximidade aparente e integração efetiva à distribuição real.}
+\label{fig:tsne}
+\end{figure}
 
 Essa constatação sugere uma prática metodológica: antes de atribuir ganho ao
 aumento generativo, convém medir a separabilidade entre características reais e

@@ -25,16 +25,25 @@ pdflatex paper
 As três passagens são necessárias: a primeira gera as referências cruzadas, o
 `bibtex` resolve a bibliografia e as duas últimas fixam numeração e citações.
 
+## Estado atual
+
+O documento **compila sem erros** e produz 5 páginas, com 3 tabelas e 7
+figuras, todas referenciadas no texto. Verificado com Tectonic em 2026-10-21.
+
+As figuras da execução oficial (30 seeds × 200 épocas) já estão versionadas em
+`figuras/` e inseridas no texto. O diagrama do pipeline (Fig. 1) é desenhado em
+TikZ dentro do próprio `.tex`, sem depender de arquivo externo.
+
 ## Figuras
 
 As figuras do experimento são geradas em `resultados/figuras/` ao rodar
-`python analisar.py`. Copie os **PDF** (vetoriais) para `paper/figuras/`:
+`python analisar.py`. Caso a execução seja repetida, atualize-as com:
 
 ```bash
 cp ../resultados/figuras/*.pdf figuras/
 ```
 
-Para inserir uma figura no texto:
+Para inserir uma figura nova no texto:
 
 ```latex
 \begin{figure}[t]
@@ -62,10 +71,10 @@ figura que ocupe a largura da página.
 | `qualitativo_tsne` | Projeção t-SNE das três nuvens | Discussão — evidência da separabilidade |
 | `qualitativo_normas` | Histograma das normas | Discussão |
 
-## O diagrama do pipeline
+## O diagrama do pipeline (já pronto)
 
-O `paper.tex` tem um `\framebox` como marcador na Fig. 1. Substitua por um
-diagrama do fluxo experimental, seguindo o padrão do slide de referência:
+A Fig. 1 é desenhada em TikZ diretamente no `paper.tex` (requer a biblioteca
+`calc`, já declarada no preâmbulo). Reproduz este fluxo:
 
 ```
 Conjunto PneumoniaMNIST  →  escassez simulada (300 / 1.500)
@@ -84,9 +93,8 @@ Conjunto PneumoniaMNIST  →  escassez simulada (300 / 1.500)
       30 seeds pareadas  →  teste t pareado bilateral
 ```
 
-Ferramentas: draw.io, Excalidraw ou TikZ. Exporte em PDF e salve como
-`figuras/pipeline.pdf`, depois troque o `\framebox` por
-`\includegraphics[width=\columnwidth]{pipeline}`.
+Para alterá-lo, edite o bloco `tikzpicture` na seção *Pipeline* do `paper.tex`.
+Não há arquivo externo a manter.
 
 ## Números a conferir antes de submeter
 
