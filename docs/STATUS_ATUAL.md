@@ -15,8 +15,9 @@ Registro do progresso das tarefas da 2ª avaliação. Para o plano completo, ver
 | 1 | T1 · Revisão e validação do código (Leo) | ✅ Concluída (guia precisa de correção, ver abaixo) |
 | 1 | T2 · Camada qualitativa (Guilherme) | ✅ Concluída e integrada no `analisar.py` |
 | 1 | T3 · Execução oficial (~40 min) | ✅ Concluída — 30/30 seeds a 200 épocas |
-| 2 | T4 · Análise e mensagem central | ⬜ Pendente — **decisão Leo + Guilherme** |
-| 3 | T5 · Paper / T6 · Apresentação | ⬜ Não iniciadas |
+| 2 | T4 · Análise e mensagem central | ✅ Decidida — ver abaixo |
+| 3 | T5 · Paper (`paper/paper.tex`) | ✅ Escrito — falta diagrama + figuras |
+| 3 | T6 · Apresentação (`docs/APRESENTACAO.md`) | ✅ Roteiro pronto — falta montar slides |
 | 4 | T7 · Ensaio / T8 · Entrega | ⬜ Não iniciadas |
 
 ---
@@ -114,3 +115,56 @@ ponto que a discussão do paper deve problematizar.
 3. Versionar os resultados: copiar as figuras finais para `docs/` (pois
    `resultados/` está no `.gitignore`) e commitar numa branch.
 4. T5 (paper) e T6 (apresentação) — só depois de T4.
+
+
+---
+
+## Atualização 2026-10-21 (Guilherme)
+
+### Conferência independente dos resultados
+
+Rodei a execução oficial na minha máquina para cruzar com a do Leo. Interrompi
+em 5 seeds (a 200 épocas ela leva ~5 min/seed aqui, contra 77 s no MacBook Pro
+dele), mas o suficiente para confirmar a direção:
+
+| Cenário | Leo (30 seeds) | Guilherme (5 seeds) |
+|---|---|---|
+| Sem aumento | 0,710 | 0,703 |
+| VAE | 0,685 | 0,684 |
+| GAN | **0,717** | **0,706** |
+| GAN − VAE | +0,032 | +0,022 |
+
+Mesma ordenação e mesma magnitude. **Os números do Leo se sustentam.** O CSV
+parcial ficou na minha máquina e é retomável sem `--reiniciar`.
+
+### T4 — mensagem central decidida
+
+**"A GAN vence, mas o ganho é pequeno."** A diferença é estatisticamente
+enorme (dz = 2,40, p < 10⁻⁶) porque o desenho pareado remove a variância do
+sorteio, mas em valor absoluto são 0,032 de F1 — e a GAN supera *não usar
+aumento nenhum* por apenas 0,007, enquanto o VAE degrada a linha de base.
+A tensão entre significância estatística e relevância prática é o fio condutor
+do paper.
+
+### T5 e T6 entregues
+
+- `paper/paper.tex` — artigo completo em IEEEtran, 10 referências,
+  `paper/README.md` com instruções de compilação no Overleaf.
+- `docs/APRESENTACAO.md` — roteiro dos 7 blocos, um por apresentador, com
+  tempo, conteúdo e perguntas prováveis de cada parte.
+
+### Documentos corrigidos
+
+A narrativa antiga (escrita com treinos curtos) foi corrigida no README
+(seção 6), no `GUIA_DEFESA.md` e na nota do ADR-0002. A lição ficou registrada
+em `adr/ADR-0003-conclusoes-de-treinos-curtos-nao-se-sustentaram.md`.
+
+### Pendências
+
+1. **`ESTUDO_T1_LEO.md` não está no repositório** — o `STATUS_ATUAL.md` o
+   referencia, mas o arquivo não foi commitado. Leo, pode subir?
+2. **Diagrama do pipeline** para a Fig. 1 do paper (hoje é um `\framebox`
+   marcador). Esboço em `paper/README.md`.
+3. **Copiar as figuras** de `resultados/figuras/*.pdf` para `paper/figuras/`.
+4. **Montar os slides** a partir do roteiro.
+5. **T7 ensaio** com os 7 apresentadores.
