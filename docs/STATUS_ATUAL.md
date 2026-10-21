@@ -168,3 +168,70 @@ em `adr/ADR-0003-conclusoes-de-treinos-curtos-nao-se-sustentaram.md`.
 3. **Copiar as figuras** de `resultados/figuras/*.pdf` para `paper/figuras/`.
 4. **Montar os slides** a partir do roteiro.
 5. **T7 ensaio** com os 7 apresentadores.
+
+
+---
+
+## Atualização 2026-10-21, segunda rodada (Guilherme)
+
+### Pendências fechadas
+
+As duas que estavam comigo, depois do commit do Leo:
+
+1. **Diagrama do pipeline (Fig. 1).** Era um `\framebox` marcador. Agora é um
+   diagrama TikZ desenhado no próprio `.tex` — sem arquivo externo nem
+   ferramenta de diagramação para manter. Segue a estrutura do slide de
+   referência: dados → escassez → dois cenários lado a lado → classificador
+   comum → teste pareado.
+
+2. **Figuras inseridas no texto.** O Leo commitou as 9 figuras, mas o
+   `paper.tex` não referenciava nenhuma: compilaria com zero gráficos, o que
+   não atende a exigência da atividade. Seis entraram no texto e **todas são
+   citadas** no corpo (float não referenciado é apontado em revisão).
+
+### O paper compila
+
+Verificado de ponta a ponta com Tectonic:
+
+| | |
+|---|---|
+| Páginas | 5 |
+| Tabelas | 3 |
+| Figuras | 7 (1 diagrama + 6 da execução oficial) |
+| Referências indefinidas | nenhuma |
+| Bibliografia | 10 entradas, todas citadas |
+
+Restam apenas avisos cosméticos de espaçamento vertical, normais em coluna
+dupla. No caminho apareceu um erro real — o TikZ exigia
+`\usetikzlibrary{calc}` para a sintaxe de coordenada média — já corrigido.
+
+### Situação das tarefas
+
+| Fase | Tarefa | Situação |
+|---|---|---|
+| 1 | T1 · Revisão do código (Leo) | ✅ `ESTUDO_T1_LEO.md` |
+| 1 | T2 · Camada qualitativa | ✅ |
+| 1 | T3 · Execução oficial | ✅ 30/30 seeds, conferida em execução independente |
+| 2 | T4 · Mensagem central | ✅ "GAN vence, ganho pequeno" |
+| 3 | T5 · Paper | ✅ **compila, 5 páginas** — falta só revisar o texto |
+| 3 | T6 · Apresentação | 🟡 Roteiro pronto; **falta montar os slides** |
+| 4 | T7 · Ensaio | ⬜ |
+| 4 | T8 · Entrega | ⬜ |
+
+### O que falta, em ordem
+
+1. **Montar os slides** a partir de `APRESENTACAO.md` (7 blocos, um por
+   apresentador). É a maior pendência.
+2. **Revisar o texto do paper** — os dois lendo, à procura de afirmação que não
+   se sustente nos números.
+3. **Compilar o PDF final** no Overleaf (subir `paper/` inteiro) e conferir as
+   figuras na diagramação final.
+4. **T7:** ensaio cronometrado com os 7, cada um respondendo 3 perguntas
+   sorteadas do `GUIA_DEFESA.md`.
+5. **T8:** entregar paper em PDF, slides em PDF e o link do repositório.
+
+### Observação sobre o histórico
+
+O primeiro commit do Leo tem mensagem "Update". O conteúdo é ótimo, mas o
+professor pode olhar o histórico — vale combinar o padrão de mensagens
+(`docs:`, `feat:`, `fix:` + descrição em português) daqui em diante.
