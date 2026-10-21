@@ -103,31 +103,45 @@ def comparar_normas(emb_real: np.ndarray, emb_vae: np.ndarray,
     _salvar(figura, "qualitativo_normas")
 
 
+def executar(seed: int = config.SEED_BASE, epocas: int = config.EPOCAS_GERADOR,
+             dispositivo=None) -> None:
+    """
+    Gera as figuras qualitativas (t-SNE e normas) para uma seed.
+
+    Treina VAE e GAN do zero porque a projeção precisa de centenas de imagens
+    sintéticas: o CSV das simulações guarda só 16 por cenário, insuficiente
+    para o t-SNE. Reutilizável pelo `analisar.py`, que a chama com o mesmo
+    orçamento de épocas usado nas simulações.
+    """
+    if dispositivo is None:
+        dispositivo = escolher_dispositivo()
+    print(f"Qualitativo: dispositivo {dispositivo}    seed: {seed}    épocas: {epocas}")
+
+    extrator = ExtratorResNet(dispositivo)
+    imagens_treino, rotulos_treino = carregar_split("train")
+    idx_min, _ = sortear_indices_escassez(rotulos_treino, seed)
+    imagens_minoria = imagens_treino[idx_min]
+    emb_real = extrator.extrair(imagens_minoria)
+
+    embeddings = {}
+    for nome, (treinar, gerar) in GERADORES.items():
+        fixar_sementes(seed)
+        modelo, _ = treinar(imagens_minoria, dispositivo, epocas=epocas)
+        embeddings[nome] = extrator.extrair(gerar(modelo, N_PROJECAO, dispositivo))
+        print(f"  {nome}: {N_PROJECAO} imagens sintéticas geradas")
+
+    print("Projetando com t-SNE (pode levar alguns segundos)...")
+    projetar_tsne(emb_real, embeddings["VAE"], embeddings["GAN"], seed)
+    comparar_normas(emb_real, embeddings["VAE"], embeddings["GAN"])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Análise qualitativa dos embeddings")
     parser.add_argument("--seed", type=int, default=config.SEED_BASE)
     parser.add_argument("--epocas", type=int, default=config.EPOCAS_GERADOR)
     args = parser.parse_args()
 
-    dispositivo = escolher_dispositivo()
-    print(f"Dispositivo: {dispositivo}    seed: {args.seed}    épocas: {args.epocas}")
-
-    extrator = ExtratorResNet(dispositivo)
-    imagens_treino, rotulos_treino = carregar_split("train")
-    idx_min, _ = sortear_indices_escassez(rotulos_treino, args.seed)
-    imagens_minoria = imagens_treino[idx_min]
-    emb_real = extrator.extrair(imagens_minoria)
-
-    embeddings = {}
-    for nome, (treinar, gerar) in GERADORES.items():
-        fixar_sementes(args.seed)
-        modelo, _ = treinar(imagens_minoria, dispositivo, epocas=args.epocas)
-        embeddings[nome] = extrator.extrair(gerar(modelo, N_PROJECAO, dispositivo))
-        print(f"  {nome}: {N_PROJECAO} imagens sintéticas geradas")
-
-    print("\nProjetando com t-SNE (pode levar alguns segundos)...")
-    projetar_tsne(emb_real, embeddings["VAE"], embeddings["GAN"], args.seed)
-    comparar_normas(emb_real, embeddings["VAE"], embeddings["GAN"])
+    executar(seed=args.seed, epocas=args.epocas)
 
     print(f"\nFiguras em {config.PASTA_FIGURAS}:")
     print("  qualitativo_tsne.pdf/.png     projeção 2D das três nuvens")

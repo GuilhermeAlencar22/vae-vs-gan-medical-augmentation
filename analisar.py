@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 import config
-from src import graficos
+from src import graficos, qualitativo
 from src.estatistica import comparar_pareado
 
 METRICAS = {
@@ -141,6 +141,12 @@ def gerar_figuras(tabela, pivo) -> None:
         with open(arquivo_historico) as arquivo:
             historicos = json.load(arquivo)
         graficos.curvas_perda(historicos["VAE"], historicos["GAN"], "curvas_perda")
+
+    # Figuras qualitativas (t-SNE e normas), equivalente ao Grad-CAM do slide de
+    # referência. Retreina VAE e GAN da seed base no MESMO orçamento de épocas do
+    # CSV, para a projeção casar com os números do experimento.
+    epocas = int(tabela["epocas"].iloc[0]) if "epocas" in tabela.columns else config.EPOCAS_GERADOR
+    qualitativo.executar(seed=config.SEED_BASE, epocas=epocas)
 
 
 if __name__ == "__main__":
