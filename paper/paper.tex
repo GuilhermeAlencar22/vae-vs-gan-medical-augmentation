@@ -1,0 +1,365 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage[brazil]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{url}
+\usepackage{hyperref}
+
+\graphicspath{{figuras/}}
+
+\begin{document}
+
+\title{VAE ou GAN para aumento de dados em radiografias de tórax?\\
+Um estudo pareado com 30 simulações}
+
+\author{
+\IEEEauthorblockN{Guilherme Alencar}
+\IEEEauthorblockA{\textit{CESAR School} \\
+Recife, Brasil}
+\and
+\IEEEauthorblockN{Leonardo Mello}
+\IEEEauthorblockA{\textit{CESAR School} \\
+Recife, Brasil}
+}
+
+\maketitle
+
+\begin{abstract}
+O aumento de dados com modelos generativos é frequentemente apresentado como
+solução para classes minoritárias escassas em imagens médicas, mas raramente
+se compara geradores sob controle experimental rigoroso. Este trabalho compara
+duas abordagens que diferem em uma única técnica: um Autoencoder Variacional
+(VAE) e uma DCGAN, ambos usados para sintetizar radiografias da classe
+minoritária. O restante do pipeline é idêntico nos dois cenários: ResNet18
+pré-treinada e congelada como extratora de características, seguida de um
+ensemble de votação suave. Avaliamos no PneumoniaMNIST com 30 simulações
+pareadas, em que cada repetição compartilha semente, dados reais e conjunto de
+teste. Rejeitamos a hipótese nula: o cenário com DCGAN obteve F1 da classe
+minoritária superior ao do VAE ($\Delta = 0{,}032$; $p < 10^{-6}$;
+$d_z = 2{,}40$). O tamanho de efeito é grande, mas o ganho absoluto é modesto e
+o cenário com DCGAN apenas empata com a linha de base sem aumento algum
+($0{,}717$ contra $0{,}710$), enquanto o VAE a degrada. Uma análise de
+separabilidade no espaço de características mostra por quê: um classificador
+linear distingue amostras sintéticas de reais com acurácia superior a
+$0{,}98$ para ambos os geradores, de modo que o balanceamento obtido é nominal
+e não efetivo. Concluímos que significância estatística e relevância prática
+divergem neste problema, e que verificar a separabilidade das amostras
+sintéticas deveria preceder qualquer alegação de ganho por aumento generativo.
+\end{abstract}
+
+\begin{IEEEkeywords}
+aumento de dados, modelos generativos, VAE, GAN, transfer learning,
+aprendizado por ensemble, classes desbalanceadas, imagem médica
+\end{IEEEkeywords}
+
+\section{Introdução}
+
+Classificadores de imagens médicas enfrentam, com frequência, uma distribuição
+de classes desbalanceada: achados raros são, por definição, pouco
+representados. Em radiografias de tórax para triagem de pneumonia, um serviço
+que inicia a rotulação de seu acervo costuma dispor de poucos exames normais
+confirmados frente a um volume maior de casos positivos. Um classificador
+treinado nesse regime tende a favorecer a classe majoritária, e a métrica de
+acurácia mascara o problema.
+
+O aumento de dados com modelos generativos é uma resposta recorrente:
+sintetizam-se exemplos da classe escassa até equilibrar o treino
+\cite{frid2018gan}. A literatura, porém, costuma reportar o ganho de um único
+gerador contra uma linha de base, sem comparar geradores entre si sob o mesmo
+protocolo, e sem verificar se as amostras sintéticas de fato se integram à
+distribuição real.
+
+Este trabalho trata exatamente dessa lacuna. Comparamos dois cenários que
+diferem em \emph{uma única} técnica, mantendo todo o resto constante:
+
+\begin{itemize}
+  \item \textbf{Cenário H0:} VAE convolucional \cite{kingma2014vae} como gerador;
+  \item \textbf{Cenário H1:} DCGAN \cite{radford2016dcgan} como gerador.
+\end{itemize}
+
+Ambos alimentam o mesmo classificador: uma ResNet18 \cite{he2016resnet}
+pré-treinada no ImageNet e congelada, seguida de um ensemble de votação suave
+\cite{dietterich2000ensemble}. As contribuições são:
+
+\begin{enumerate}
+  \item um protocolo pareado de 30 simulações que isola o efeito do gerador,
+        com teste de hipótese, tamanho de efeito e intervalo de confiança;
+  \item a constatação de que a diferença entre geradores, embora
+        estatisticamente muito significativa, é praticamente modesta frente à
+        linha de base sem aumento;
+  \item um diagnóstico de separabilidade que explica o resultado e que
+        propomos como verificação mínima antes de alegar ganho por aumento
+        generativo.
+\end{enumerate}
+
+\section{Trabalhos relacionados}
+
+O desbalanceamento de classes é tradicionalmente tratado por reamostragem,
+sendo o SMOTE \cite{chawla2002smote} o representante clássico ao interpolar
+vizinhos no espaço de atributos. Com imagens, a interpolação linear em pixels
+produz artefatos, o que motivou o uso de modelos generativos profundos.
+
+VAEs \cite{kingma2014vae} otimizam um limite inferior da verossimilhança e
+produzem um espaço latente contínuo, do qual se amostra por construção. Por
+usarem perda de reconstrução pixel a pixel, tendem a gerar imagens suavizadas.
+GANs \cite{goodfellow2014gan} substituem a reconstrução por um discriminador
+adversarial; a DCGAN \cite{radford2016dcgan} estabeleceu as escolhas
+arquiteturais que tornaram esse treino estável. Frid-Adar et
+al.~\cite{frid2018gan} relatam ganho com síntese por GAN em lesões hepáticas,
+um dos resultados que motivam a prática.
+
+Para avaliar fidelidade de geradores, a distância de Fréchet entre ativações de
+uma rede pré-treinada \cite{heusel2017fid} tornou-se padrão. Neste trabalho a
+calculamos sobre as características da própria ResNet18 do pipeline, e a
+reportamos ao lado do desempenho de classificação para examinar se as duas
+medidas concordam.
+
+\section{Metodologia}
+
+\subsection{Conjunto de dados}
+
+Utilizamos o PneumoniaMNIST, do benchmark MedMNIST v2 \cite{yang2023medmnist}:
+radiografias de tórax pediátricas em $28 \times 28$, tons de cinza, com rótulos
+\emph{normal} e \emph{pneumonia}. A Tabela~\ref{tab:dados} descreve a partição
+oficial, preservada integralmente.
+
+\begin{table}[t]
+\centering
+\caption{Partição oficial do PneumoniaMNIST}
+\label{tab:dados}
+\begin{tabular}{lccc}
+\toprule
+Partição & Imagens & Normal & Pneumonia \\
+\midrule
+Treino & 4.708 & 1.214 (25,8\%) & 3.494 (74,2\%) \\
+Teste  & 624   & 234 (37,5\%)   & 390 (62,5\%)   \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Escassez simulada}
+
+Com as 1.214 imagens normais disponíveis, o aumento sintético teria pouco a
+acrescentar. Para construir o regime em que a geração é de fato necessária,
+cada simulação sorteia, sem reposição, $300$ imagens normais e $1.500$ com
+pneumonia, uma razão de $1$:$5$. Cada gerador sintetiza $1.200$ imagens
+normais, levando o treino a $1.500$ por classe.
+
+\subsection{Pipeline}
+
+A Fig.~\ref{fig:pipeline} resume o fluxo. As três técnicas são:
+
+\textbf{A. Geração sintética.} VAE convolucional (cenário H0) ou DCGAN
+(cenário H1). Esta é a \emph{única} diferença entre os cenários.
+
+\textbf{B. Transfer learning.} ResNet18 pré-treinada no ImageNet, com a camada
+de classificação substituída pela identidade, produzindo um vetor de $512$
+características. A rede permanece \emph{congelada} por três razões: com $300$
+imagens reais, ajustar $11$ milhões de parâmetros levaria a sobreajuste; o
+custo de $90$ ajustes finos seria proibitivo; e, sobretudo, manter a extratora
+fixa garante que a única fonte de variação entre cenários seja o gerador. As
+imagens são reamostradas para $112 \times 112$ e replicadas em três canais,
+aproximando a escala e o formato esperados pela rede.
+
+\textbf{C. Ensemble.} Votação suave entre regressão logística, \emph{random
+forest} e \emph{gradient boosting} histogramado, sobre as características
+extraídas. Os três modelos usam ponderação de classes inversamente
+proporcional à frequência, aplicada \emph{identicamente} nos três cenários;
+trata-se de correção do instrumento de medida, não do tratamento.
+
+\begin{figure}[t]
+\centering
+% Substituir por diagrama do pipeline (ver paper/README.md)
+\framebox[0.95\columnwidth]{\rule{0pt}{4.2cm}\ \ Diagrama do pipeline}
+\caption{Fluxo experimental. Apenas o bloco de geração sintética difere entre
+os cenários H0 e H1; extração de características, classificador e conjunto de
+teste são idênticos.}
+\label{fig:pipeline}
+\end{figure}
+
+\subsection{Protocolo experimental}
+
+São $30$ simulações independentes, com sementes $42$ a $71$. A semente controla
+o sorteio das imagens reais, a inicialização dos geradores, a ordem dos lotes e
+a aleatoriedade do ensemble. Como os dois cenários compartilham a mesma
+semente, cada par observa \emph{as mesmas} imagens reais e é avaliado no mesmo
+conjunto de teste oficial, o que caracteriza um desenho pareado. Para que
+nenhum gerador seja favorecido por mais computação, ambos recebem orçamento
+idêntico: $200$ épocas. Um terceiro cenário, \emph{sem aumento}, é registrado
+como linha de base e não participa do teste.
+
+\subsection{Métricas e análise estatística}
+
+A métrica principal, definida antes da execução, é o F1 da classe minoritária.
+A acurácia seria enganosa: o teste contém $62{,}5\%$ de pneumonia, de modo que
+um classificador trivial já a atingiria sem aprender nada. Reportamos ainda
+AUC, acurácia balanceada, revocação e a distância de Fréchet sobre as
+características da ResNet18 (FD), esta última como medida de fidelidade
+independente do classificador.
+
+As hipóteses sobre a diferença média no F1 são
+$H_0: \mu_{\text{VAE}} - \mu_{\text{GAN}} = 0$ contra
+$H_1: \mu_{\text{VAE}} - \mu_{\text{GAN}} \neq 0$. O teste é bilateral, pois
+não havia expectativa fundamentada sobre qual gerador venceria. Verificamos a
+normalidade das $30$ diferenças pareadas com Shapiro--Wilk; satisfeita a
+suposição, aplicamos o teste $t$ pareado, e o de Wilcoxon caso contrário.
+Adotamos $\alpha = 0{,}05$ e reportamos o tamanho de efeito $d_z$ de Cohen e o
+intervalo de confiança de $95\%$.
+
+\section{Resultados}
+
+\subsection{Desempenho de classificação}
+
+A Tabela~\ref{tab:resultados} apresenta média e desvio padrão nas $30$
+simulações. O cenário com DCGAN supera o com VAE no F1 da classe minoritária, e
+o teste pareado rejeita $H_0$ com folga: diferença média de $-0{,}032$ a favor
+da DCGAN, $p < 10^{-6}$, $d_z = -2{,}40$, intervalo de confiança de $95\%$
+$[-0{,}037;\ -0{,}027]$. Shapiro--Wilk não rejeitou a normalidade das
+diferenças ($p = 0{,}69$), de modo que o teste $t$ pareado é apropriado.
+
+% Tabela gerada automaticamente em resultados/tabela_resultados.tex
+\begin{table}[t]
+\centering
+\caption{Média (desvio padrão) em 30 simulações pareadas}
+\label{tab:resultados}
+\begin{tabular}{lccc}
+\toprule
+Métrica & Sem aumento & VAE (H0) & GAN (H1) \\
+\midrule
+F1 (minoritária)      & 0,710 & 0,685 & \textbf{0,717} \\
+AUC                   & \textbf{0,939} & 0,928 & 0,919 \\
+Acurácia balanceada   & 0,775 & 0,759 & \textbf{0,778} \\
+Revocação (normal)    & 0,570 & 0,534 & \textbf{0,586} \\
+FD ResNet ($\downarrow$) & --- & 223,3 & \textbf{160,2} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Dois aspectos merecem destaque. Primeiro, a linha de base \emph{sem aumento
+algum} alcança F1 de $0{,}710$, de modo que a DCGAN a supera por apenas
+$0{,}007$, enquanto o VAE a degrada em $0{,}025$. Segundo, a AUC favorece a
+linha de base sobre ambos os geradores, indicando que o aumento sintético
+altera o limiar de decisão mais do que a capacidade de ordenação do modelo.
+
+\subsection{Fidelidade das amostras}
+
+A distância de Fréchet favorece a DCGAN ($160{,}2$ contra $223{,}3$), em
+concordância com o desempenho de classificação. Neste experimento, portanto,
+fidelidade e utilidade apontam na mesma direção.
+
+\subsection{Diagnóstico de separabilidade}
+
+Para verificar se o balanceamento numérico se traduz em balanceamento efetivo,
+treinamos uma regressão logística para distinguir características de imagens
+reais das de sintéticas, com validação cruzada. Se as amostras sintéticas
+estivessem integradas à distribuição real, essa acurácia ficaria próxima de
+$0{,}5$. A Tabela~\ref{tab:separabilidade} mostra o contrário.
+
+\begin{table}[t]
+\centering
+\caption{Separabilidade entre características reais e sintéticas (semente 42)}
+\label{tab:separabilidade}
+\begin{tabular}{lccc}
+\toprule
+Gerador & Separabilidade & Norma média & \% da real \\
+\midrule
+Reais & --- & 34,4 & 100,0\% \\
+VAE   & 0,997 & 27,3 & 79,4\% \\
+GAN   & 0,986 & 34,6 & 100,5\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ambos os geradores produzem amostras quase perfeitamente separáveis das reais
+por uma fronteira \emph{linear}. Do ponto de vista do classificador, as imagens
+sintéticas não constituem exemplos adicionais da classe minoritária, mas um
+agrupamento próprio, que os modelos baseados em árvores isolam com poucas
+partições. O balanceamento de $1$:$1$ é, portanto, nominal e não efetivo.
+
+A norma média das características esclarece a diferença entre os geradores: a
+DCGAN reproduz a magnitude de ativação das imagens reais ($100{,}5\%$),
+enquanto o VAE fica substancialmente abaixo ($79{,}4\%$), compatível com a
+suavização característica de sua perda de reconstrução. Isso explica por que a
+DCGAN, apesar de igualmente separável, degrada menos o classificador.
+
+\section{Discussão}
+
+\subsection{Significância estatística e relevância prática}
+
+O resultado ilustra com clareza a distinção entre as duas noções. O tamanho de
+efeito $d_z = 2{,}40$ é, pelos critérios convencionais, muito grande, e o valor
+$p$ é inferior a $10^{-6}$. Isso decorre do desenho pareado: ao comparar
+geradores sobre as mesmas imagens, eliminamos a variância do sorteio e tornamos
+detectável uma diferença sistemática pequena.
+
+Pequena é a palavra adequada. Em termos absolutos, a troca do VAE pela DCGAN
+rende $0{,}032$ de F1, e a DCGAN supera a ausência total de aumento por
+$0{,}007$. Um serviço clínico que investisse em treinar um modelo generativo
+obteria, neste cenário, ganho praticamente nulo. Reportar apenas o valor $p$
+sugeriria uma conclusão bem mais entusiasmada do que os dados sustentam.
+
+\subsection{Por que o aumento não entrega o ganho esperado}
+
+O diagnóstico de separabilidade oferece a explicação. Treinar um gerador com
+$300$ imagens de $28 \times 28$ não basta para reproduzir a estatística de
+textura que a ResNet18 utiliza para descrever as radiografias reais. As
+amostras sintéticas ocupam região própria do espaço de características, e um
+classificador baseado em árvores simplesmente as isola, em vez de generalizar a
+partir delas.
+
+Essa constatação sugere uma prática metodológica: antes de atribuir ganho ao
+aumento generativo, convém medir a separabilidade entre características reais e
+sintéticas. Trata-se de verificação barata, que requer apenas um classificador
+linear, e que distingue balanceamento nominal de balanceamento efetivo.
+
+\subsection{Limitações}
+
+A resolução de $28 \times 28$ limita o teto de qualidade dos geradores;
+resoluções maiores plausivelmente reduziriam a separabilidade. A extratora
+congelada favorece o controle experimental, mas o ajuste fino poderia adaptar
+as características ao domínio radiográfico. O estudo cobre duas classes e um
+único conjunto de dados, de modo que a generalização a outros domínios médicos
+permanece em aberto. Por fim, parte das operações no backend MPS não é
+determinística, o que introduz variação em casas decimais distantes, sem efeito
+sobre as conclusões.
+
+\subsection{Trabalhos futuros}
+
+Três direções decorrem diretamente dos resultados: avaliar se resoluções
+maiores reduzem a separabilidade a ponto de tornar o aumento efetivo;
+contrastar a síntese generativa com aumento clássico por transformações
+geométricas, de custo muito inferior; e investigar se filtrar amostras
+sintéticas por um critério de proximidade às reais converte parte da síntese em
+ganho mensurável.
+
+\section{Conclusão}
+
+Comparamos VAE e DCGAN como geradores para aumento da classe minoritária em
+radiografias de tórax, sob protocolo pareado de $30$ simulações em que apenas o
+gerador varia. Rejeitamos a hipótese nula: a DCGAN supera o VAE no F1 da classe
+minoritária, com $p < 10^{-6}$ e tamanho de efeito grande, e também apresenta
+maior fidelidade pela distância de Fréchet.
+
+A leitura cuidadosa do resultado, contudo, modera o entusiasmo. A DCGAN apenas
+empata com a ausência de aumento, e o VAE a degrada. O diagnóstico de
+separabilidade explica o fenômeno: ambos os geradores produzem amostras quase
+perfeitamente distinguíveis das reais, de modo que o balanceamento alcançado é
+nominal. A contribuição prática deste trabalho é menos a escolha entre
+geradores e mais a recomendação de verificar a separabilidade antes de atribuir
+ganho ao aumento generativo.
+
+\section*{Disponibilidade}
+
+Código, documentação e instruções de reprodução estão disponíveis em
+\url{https://github.com/GuilhermeAlencar22/vae-vs-gan-medical-augmentation}.
+
+\bibliographystyle{IEEEtran}
+\bibliography{referencias}
+
+\end{document}

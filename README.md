@@ -101,7 +101,13 @@ modelo reconhecer bem justamente a classe rara.
 │   ├── diagnostico.py      verifica se o aumento sintético é efetivo
 │   ├── qualitativo.py      projeção t-SNE dos embeddings (análise visual)
 │   └── utilidades.py       seeds e escolha de GPU
+├── paper/
+│   ├── paper.tex           artigo em IEEE coluna dupla
+│   ├── referencias.bib     bibliografia
+│   └── README.md           como compilar (Overleaf ou local)
 ├── docs/
+│   ├── APRESENTACAO.md     roteiro dos 7 blocos da apresentação
+│   ├── STATUS_ATUAL.md     progresso das tarefas
 │   ├── INSTRUCOES_LEO.md   passo a passo para rodar a execução oficial
 │   ├── GUIA_DEFESA.md      perguntas prováveis do professor, com respostas
 │   ├── PLANO_ENTREGA.md    divisão de tarefas e ordem das atividades
@@ -195,73 +201,67 @@ de imagens reais vs VAE vs GAN, e as curvas de perda dos dois geradores.
 
 ---
 
-## 6. Achados de validação do pipeline
+## 6. Resultados oficiais e achados
 
-Estes resultados vêm da verificação do código e **devem entrar na discussão do
-paper**. São eles que mostram leitura crítica dos próprios resultados.
+Execução oficial: **30 seeds × 200 épocas**, pipeline completo.
 
-### 6.1 O balanceamento 1:1 é nominal, não efetivo
+### 6.1 Rejeitamos H0: a DCGAN supera o VAE
 
-Ao somar 1 200 imagens sintéticas às 300 reais, o treino fica numericamente
-balanceado em 1 500 × 1 500. O desempenho, porém, **não melhora** — e de fato
-piora um pouco em relação à linha de base.
-
-O diagnóstico (`src/diagnostico.py`) explica o motivo. Treinando uma regressão
-logística para distinguir embedding real de embedding sintético:
-
-| Gerador | Separabilidade real vs sintético | Norma média do embedding | % da norma real |
+| Métrica | Sem aumento | VAE (H0) | GAN (H1) |
 |---|---|---|---|
-| Real (normal) | — | 34,40 | 100 % |
-| VAE | **1,0000** | 22,53 | 65,5 % |
-| GAN | **1,0000** | 30,99 | 90,1 % |
+| F1 (classe normal) | 0,710 | 0,685 | **0,717** |
+| AUC | **0,939** | 0,928 | 0,919 |
+| Acurácia balanceada | 0,775 | 0,759 | **0,778** |
+| Revocação (normal) | 0,570 | 0,534 | **0,586** |
+| FD ResNet (menor = mais fiel) | — | 223,3 | **160,2** |
 
-Separabilidade de 1,0000 significa que até uma fronteira **linear** separa as
-duas nuvens sem erro algum. Do ponto de vista do classificador, as imagens
-sintéticas não são "mais exemplos de normal": são um terceiro agrupamento, que
-as árvores isolam com um único corte e que portanto não ensina nada sobre as
-radiografias normais de verdade.
+Teste t pareado (Shapiro p = 0,69, normalidade não rejeitada):
+diferença média VAE−GAN = **−0,032**, IC95% [−0,037; −0,027],
+**p < 10⁻⁶**, d de Cohen dz = **−2,40** (efeito grande).
 
-A projeção t-SNE (`figuras/qualitativo_tsne.pdf`) mostra isso visualmente: as
-três nuvens aparecem como ilhas praticamente disjuntas, sem sobreposição entre
-o sintético e o real.
+### 6.2 O efeito é grande, o ganho é pequeno
 
-A norma menor do embedding sintético é a pista de **por que** isso acontece: a
-ResNet responde com ativações mais fracas a texturas pobres. As imagens geradas
-parecem radiografias a olho nu, mas não reproduzem a estatística de textura
-fina que a rede usa para descrever as reais.
+Esta é a leitura que o paper defende. O dz de 2,40 é enorme e o p é minúsculo,
+mas isso decorre do desenho pareado, que remove a variância do sorteio e torna
+detectável uma diferença sistemática pequena.
 
-É um resultado honesto e publicável: **aumento de dados no espaço de pixels com
-geradores treinados em 300 imagens de 28×28 não transfere para o espaço de
-embeddings de uma rede pré-treinada.**
+Em termos absolutos: trocar VAE por GAN rende **0,032** de F1, e a GAN supera
+**não usar aumento nenhum** por apenas **0,007** — enquanto o VAE *degrada* a
+linha de base em 0,025. A AUC, aliás, favorece a linha de base sobre os dois
+geradores.
 
-### 6.2 O limiar fixo de 0,5 enviesa a métrica
+Significância estatística e relevância prática divergem aqui, e reportar só o
+valor p sugeriria uma conclusão bem mais entusiasmada do que os dados sustentam.
 
-O ensemble decide pelo limiar padrão de 0,5 sobre um treino desbalanceado em
-1 500 × 300. Isso travava a revocação da classe normal em torno de 0,53, com
-precisão 0,97: o modelo só acertava os normais mais óbvios. Varrendo o limiar,
-o F1 alcançável na seed 42 chegava a **0,82**, contra **0,68** medidos.
+### 6.3 Por quê: o balanceamento é nominal, não efetivo
 
-Como isso comprime os dois cenários contra o mesmo teto e torna o teste
-insensível à diferença que ele quer detectar, o ensemble passou a usar
-`class_weight="balanced"` nos três modelos (ver `config.PESO_CLASSE`). A
-correção é **idêntica nos três cenários**, então não favorece VAE nem GAN: é
-uma correção do instrumento de medida, não do tratamento. O F1 da linha de base
-subiu de 0,683 para 0,727 na seed 42.
+Uma regressão logística distingue características sintéticas de reais com
+acurácia quase perfeita:
 
-### 6.3 A diferença aparece na fidelidade, não no F1
+| Gerador | Separabilidade | Norma média | % da real |
+|---|---|---|---|
+| Reais | — | 34,4 | 100,0% |
+| VAE | 0,997 | 27,3 | 79,4% |
+| GAN | 0,986 | 34,6 | 100,5% |
 
-Nas simulações de verificação, o F1 não distingue os dois geradores, mas a
-**distância de Fréchet** distingue com folga: o VAE gera imagens
-consistentemente mais próximas das reais que a DCGAN (dz ≈ −5,8, p < 0,01).
+Até uma fronteira **linear** separa as nuvens. Do ponto de vista do
+classificador, as imagens sintéticas não são exemplos adicionais da classe
+normal: são um agrupamento próprio, que as árvores isolam com poucos cortes.
 
-Ou seja, o VAE ganha em fidelidade e isso **não se converte** em ganho de
-classificação — exatamente o que a seção 6.1 explica. Vale reportar as duas
-métricas no paper: a conclusão interessante está na diferença entre elas.
+A norma explica a diferença entre os geradores: a GAN reproduz a magnitude de
+ativação das reais (100,5%), o VAE fica bem abaixo (79,4%), compatível com a
+suavização da perda de reconstrução pixel a pixel. Por isso a GAN, embora
+igualmente separável, degrada menos o classificador.
 
-> As execuções de verificação usaram poucas épocas e poucas seeds, apenas para
-> validar o pipeline. Os números oficiais do paper saem da execução completa.
+**Recomendação metodológica:** medir a separabilidade antes de atribuir ganho a
+aumento generativo. É verificação barata — basta um classificador linear — e
+distingue balanceamento nominal de efetivo.
 
----
+> **Atenção.** Versões anteriores deste README afirmavam o oposto em três
+> pontos (FD favorecendo o VAE, "ilha separada" no t-SNE, GAN com textura
+> pobre). Aquelas conclusões vieram de execuções de verificação com poucas
+> épocas e **não se sustentaram** a 200 épocas. Ver
+> `docs/adr/ADR-0003-conclusoes-de-treinos-curtos-nao-se-sustentaram.md`.
 
 ## 7. Notas de reprodutibilidade
 

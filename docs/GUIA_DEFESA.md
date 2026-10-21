@@ -193,60 +193,70 @@ Cada teste a 5% tem 5% de chance de falso positivo. Fazendo cinco testes, a chan
 
 ---
 
-## Validação do pipeline (perguntas difíceis)
+## Resultados oficiais (perguntas difíceis)
 
-Estas são as perguntas que o professor vai fazer se ele ler os resultados com
-atenção. Vale decorar as três: elas mostram que o grupo leu criticamente os
-próprios números em vez de aceitar a primeira saída.
+As perguntas mais prováveis da arguição. Todo mundo precisa saber responder
+estas três, porque elas vão direto ao resultado.
 
-**O aumento sintético melhorou o desempenho?**
-Não. E isso é o achado principal do trabalho. O treino fica numericamente
-balanceado (1500 por classe), mas o desempenho não melhora e piora um pouco
-em relação à linha de base sem aumento.
+**Qual foi a conclusão: rejeitaram H0?**
+Sim. O cenário com DCGAN teve F1 da classe normal superior ao do VAE: 0,717
+contra 0,685. Diferença média de −0,032 a favor da GAN, IC95% [−0,037; −0,027],
+p < 10⁻⁶, dz = −2,40. O Shapiro-Wilk não rejeitou normalidade das diferenças
+(p = 0,69), então aplicamos o t pareado.
 
-**Então o código está errado?**
-Não. Nós investigamos e medimos a causa. Rodando `python -m src.diagnostico`,
-treinamos uma regressão logística para distinguir embedding real de embedding
-sintético: a acurácia é 1,0000, ou seja, até uma fronteira linear separa as
-duas nuvens sem nenhum erro. Do ponto de vista do classificador as imagens
-sintéticas não são mais exemplos da classe normal, são um terceiro
-agrupamento, que as árvores isolam com um corte só. O balanceamento é
-NOMINAL, não EFETIVO.
+**O dz de 2,40 é enorme. A GAN é muito melhor então?**
+Não, e essa é a parte interessante. O efeito é grande em desvios padrão porque
+o desenho pareado remove a variância do sorteio dos dados: os dois cenários
+veem exatamente as mesmas imagens. Isso torna detectável uma diferença
+sistemática que, em termos absolutos, é pequena — 0,032 de F1. Mais: a GAN
+supera a linha de base *sem aumento nenhum* por apenas 0,007, e o VAE a piora
+em 0,025. Significância estatística e relevância prática divergem aqui.
 
-**Por que isso acontece?**
-A norma média do embedding mostra a pista: 34,4 nas reais, 22,5 nas do VAE e
-31,0 nas da GAN. A ResNet responde com ativações mais fracas a texturas
-pobres. As imagens geradas parecem radiografias a olho nu, mas não reproduzem
-a estatística de textura fina que a rede usa para descrever as reais. Treinar
-um gerador com 300 imagens de 28x28 não é suficiente para isso.
+**Então o aumento sintético funcionou ou não?**
+Praticamente não. A GAN empata com não fazer nada e o VAE atrapalha. O
+diagnóstico explica: uma regressão logística separa características sintéticas
+de reais com acurácia 0,997 (VAE) e 0,986 (GAN). Até uma fronteira linear as
+distingue. As imagens geradas não entram como exemplos extras da classe normal;
+formam um agrupamento próprio que as árvores isolam. O balanceamento 1:1 é
+nominal, não efetivo.
 
-**Por que `class_weight="balanced"` no ensemble?**
-Porque o limiar de decisão é fixo em 0,5 e o treino é desbalanceado em
-1500 contra 300. Sem o peso, a revocação da classe normal travava em torno de
-0,53 com precisão 0,97: o modelo só acertava os normais mais óbvios. Varrendo
-o limiar, o F1 alcançável era 0,82 contra 0,68 medidos. Isso comprimia os dois
-cenários contra o mesmo teto e tornava o teste insensível justamente à
-diferença que ele quer detectar. O peso é aplicado de forma IDÊNTICA nos três
-cenários, então não favorece VAE nem GAN: corrige o instrumento de medida, não
-o tratamento.
+**Se os dois são igualmente separáveis, por que a GAN vai melhor?**
+Pela norma da característica. A GAN reproduz a magnitude de ativação das
+imagens reais (100,5% da norma real), o VAE fica em 79,4%. A perda de
+reconstrução pixel a pixel do VAE produz imagens suavizadas, e a ResNet
+responde com ativações mais fracas a textura pobre. A GAN é separável, mas
+menos destoante.
 
-**Se o F1 não distingue os geradores, o trabalho não deu em nada?**
-Ao contrário. A distância de Fréchet distingue com folga: o VAE gera imagens
-consistentemente mais próximas das reais que a DCGAN. Então o VAE ganha em
-fidelidade e isso não se converte em ganho de classificação. A conclusão
-interessante está exatamente na diferença entre as duas métricas, e é isso que
-a seção de discussão do paper defende.
+**Por que a AUC favorece a linha de base?**
+Porque o aumento sintético mexe mais no limiar de decisão do que na capacidade
+de ordenar casos. A AUC não depende de limiar; o F1 depende. Isso reforça que o
+ganho no F1 da GAN não vem de o modelo "entender melhor" a classe normal.
 
-**Por que a referência da distância de Fréchet usa só as 300 imagens sorteadas?**
-Porque o gerador só viu essas 300. Comparar com todas as 1214 normais do split
-de treino mediria generalização, não fidelidade, e tornaria a referência
-idêntica em todas as 30 simulações, o que quebraria o pareamento.
+**Vocês chegaram a ter uma conclusão diferente antes?**
+Sim, e isso está documentado no ADR-0003. Durante a validação do código rodamos
+treinos curtos (3 a 20 épocas) e eles sugeriam o oposto: VAE mais fiel, GAN com
+textura pobre, nuvens sintéticas sempre separadas. A 200 épocas três dessas
+afirmações se inverteram. A causa é que uma GAN interrompida cedo ainda não
+alcançou o discriminador, enquanto o VAE converge mais rápido — o orçamento
+curto criava uma vantagem artificial para o VAE. A regra que adotamos: execução
+de verificação responde "o código roda?", não "qual gerador é melhor?".
+
+**Por que o `class_weight="balanced"` no ensemble?**
+Porque o limiar é fixo em 0,5 e o treino é desbalanceado em 1500 contra 300.
+Sem o peso, a revocação da classe normal travava em 0,53 com precisão 0,97, e o
+F1 alcançável por varredura de limiar era 0,82 contra 0,68 medidos. Isso
+comprimia os dois cenários contra o mesmo teto. O peso é idêntico nos três
+cenários: corrige o instrumento de medida, não o tratamento. Ver ADR-0002.
+
+**Por que a referência da distância de Fréchet usa só as 300 sorteadas?**
+Porque o gerador só viu essas 300. Usar todas as 1214 normais do split mediria
+generalização, não fidelidade, e tornaria a referência idêntica nas 30
+simulações, quebrando o pareamento.
 
 **Por que a coluna `epocas` no CSV?**
-Para impedir contaminação silenciosa. Um teste rápido com `--epocas 5` deixa
-linhas no CSV que a execução oficial com 200 épocas pularia na retomada,
-misturando dois orçamentos de treino na mesma análise. Com a coluna, o script
-detecta a mistura e se recusa a continuar.
+Para impedir contaminação silenciosa. Um teste rápido com 5 épocas deixaria
+linhas que a execução oficial de 200 pularia na retomada, misturando dois
+orçamentos na mesma análise. O script detecta e se recusa a continuar.
 
 ---
 

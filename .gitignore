@@ -28,3 +28,12 @@ Thumbs.db
 !.vscode/launch.json
 !.vscode/settings.json
 .idea/
+
+# LaTeX (artefatos de compilação; o PDF final é entregue à parte)
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.pdf
+paper/*.synctex.gz

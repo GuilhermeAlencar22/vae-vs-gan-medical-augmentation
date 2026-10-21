@@ -56,17 +56,18 @@ seeds gravadas com o mesmo orçamento. Detectada mistura, o script para e pede
 
 ## Nota: o aumento sintético não melhora o desempenho
 
-A investigação revelou um achado que **não** é um defeito do código e que vai
-para a discussão do paper. Somar 1 200 imagens sintéticas balanceia o treino em
-1 500 × 1 500, mas o desempenho não melhora.
+> **Atualizado em 2026-10-21.** Esta nota foi escrita com execuções de
+> verificação de poucas épocas. A execução oficial (30 seeds × 200 épocas)
+> confirmou a parte central — a separabilidade alta — mas **inverteu** as
+> conclusões sobre qual gerador é mais fiel. Ver
+> `ADR-0003-conclusoes-de-treinos-curtos-nao-se-sustentaram.md` e a seção 6 do
+> README para os números oficiais.
 
-`src/diagnostico.py` mede a causa: uma regressão logística distingue embedding
-real de embedding sintético com acurácia **1,0000**, isto é, até uma fronteira
-linear separa as duas nuvens sem erro. As imagens sintéticas não funcionam como
-exemplos adicionais da classe normal; formam um terceiro agrupamento que as
-árvores isolam com um corte só. A norma média do embedding indica o porquê:
-34,4 nas reais contra 22,5 (VAE) e 31,0 (GAN) — a ResNet responde com ativações
-mais fracas a texturas pobres.
+O que permaneceu verdadeiro: somar 1.200 imagens sintéticas balanceia o treino
+em 1.500 × 1.500, mas o ganho não se materializa. A 200 épocas a separabilidade
+entre características reais e sintéticas é 0,997 (VAE) e 0,986 (GAN) — até uma
+fronteira linear as distingue. O balanceamento é **nominal, não efetivo**.
 
-O balanceamento é **nominal, não efetivo**. Mantemos o desenho como está e
-reportamos o achado, porque ele é o resultado mais interessante do estudo.
+O que mudou: a 200 épocas a GAN reproduz a textura real (norma 100,5% da real,
+FD 160,2) e supera o VAE (norma 79,4%, FD 223,3). A afirmação original de que a
+GAN tinha "textura pobre" valia apenas para o treino interrompido cedo.
